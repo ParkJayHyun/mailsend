@@ -10,6 +10,7 @@ import mailgun.mailsend.domain.TargetType;
 import mailgun.mailsend.dto.Form;
 import mailgun.mailsend.service.TargetService;
 import mailgun.mailsend.service.ThreadService;
+import mailgun.mailsend.thread.ThreadPoolInit;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -32,6 +33,7 @@ import javax.annotation.Resource;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.Executor;
 import java.util.stream.Collectors;
 
 @Slf4j
@@ -126,25 +128,40 @@ public class MailgunController {
     public String uploadCSVFile(@RequestParam("file") MultipartFile file,
                                 @RequestParam String dataType ,
                                 Model model) {
-        log.info("dataType ={}", dataType);
-        if (file.isEmpty()) {
-
-        }else{
+        log.info("####### dataType ={} Start #######",dataType);
+        if (!file.isEmpty()) {
             try{
                 Reader reader = new BufferedReader(new InputStreamReader(file.getInputStream()));
-                List<CsvMail> list = new CsvToBeanBuilder(reader)
+                List<CsvMail> filelist = new CsvToBeanBuilder(reader)
                         .withType(CsvMail.class)
                         .withIgnoreLeadingWhiteSpace(true)
                         .build()
                         .parse();
 
-                log.info("list = {}",list);
-
+                if(filelist.size() > 0){
+                    List<String> list = filelist.stream().map(CsvMail::getEmail).collect(Collectors.toList());
+                    if (list.size() > 0) {
+                        //Upload File Create
+                        for (int index = 0; index < list.size(); ) {
+                            int limitSize = index + MAX_LIMIT;
+                            if (limitSize > list.size()) {
+                                limitSize = list.size();
+                            }
+                            List<String> sendList = list.subList(index, limitSize);
+                            if("create".equals(dataType)){
+                                threadService.createUser(sendList);
+                            }else if("bounce".equals(dataType)){
+                                threadService.bounceUser(sendList);
+                            }
+                            index += MAX_LIMIT;
+                        }
+                    }
+                }
             }catch (Exception e){
                 log.error("upload-csv-file reader error = {}",e);
             }
         }
-
+        log.info("####### dataType ={} End #######",dataType);
         return "redirect:";
     }
 

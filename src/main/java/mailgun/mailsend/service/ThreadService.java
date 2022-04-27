@@ -38,16 +38,7 @@ public class ThreadService {
             try{
                 Target target = targetService.findTargetByEmail(email);
                 if(target != null){
-                    try{
-                        target.setIsFail(false);
-                        target.setIsSend(true);
-                        targetService.update(target);
-                    }catch (Exception e){
-                        log.error("IsSend Update Error = {}, mail = {}",e,target.getEmail());
-                    }
-
-
-                    /*if(target.getIsSend() == false){
+                    if(target.getIsSend() == false){
                         try{
                             ClientResponse clientResponse = send(target.getEmail(),apiKey,apiUrl,templateName);
                             if (clientResponse.getStatusInfo().getStatusCode() == 200) {
@@ -55,7 +46,7 @@ public class ThreadService {
                                     target.setIsFail(false);
                                     target.setIsSend(true);
                                     targetService.update(target);
-                                    log.info("Success Send mail = {}", target.getEmail());
+                                    //log.info("Success Send mail = {}", target.getEmail());
                                 }catch (Exception e){
                                     log.error("IsSend Update Error = {}, mail = {}",e,target.getEmail());
                                 }
@@ -69,7 +60,7 @@ public class ThreadService {
                         }
                     }else {
                         log.info("Already send mail = {}",target.getEmail());
-                    }*/
+                    }
                 }else{
                     log.info("Target Data is not exist = {}" , target.getEmail());
                 }
@@ -95,5 +86,31 @@ public class ThreadService {
     @Async("executor")
     public Target createUser(String email) {
         return targetService.save(email);
+    }
+
+    @Async("executor")
+    public void createUser(List<String> createList) {
+        for(String email : createList){
+            try {
+                targetService.save(email);
+            }catch (Exception e){
+                log.error("upload file create user error = {}",e);
+            }
+        }
+    }
+
+    @Async("executor")
+    public void bounceUser(List<String> bounceList) {
+        for(String email : bounceList){
+            try {
+                Target bounceTarget = targetService.findTargetByEmail(email);
+                if(bounceTarget != null){
+                    bounceTarget.setIsBounce(true);
+                    targetService.update(bounceTarget);
+                }
+            }catch (Exception e){
+                log.error("upload file create user error = {}",e);
+            }
+        }
     }
 }
