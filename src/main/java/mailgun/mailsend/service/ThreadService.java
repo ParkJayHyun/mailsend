@@ -1,0 +1,99 @@
+package mailgun.mailsend.service;
+
+import com.sun.jersey.api.client.filter.HTTPBasicAuthFilter;
+import com.sun.jersey.core.util.MultivaluedMapImpl;
+import lombok.extern.slf4j.Slf4j;
+import mailgun.mailsend.domain.Target;
+import mailgun.mailsend.domain.TargetType;
+import mailgun.mailsend.dto.Form;
+import org.springframework.scheduling.annotation.Async;
+import org.springframework.stereotype.Service;
+import com.sun.jersey.api.client.Client;
+import com.sun.jersey.api.client.ClientResponse;
+import com.sun.jersey.api.client.WebResource;
+
+import javax.annotation.Resource;
+import javax.ws.rs.core.MediaType;
+import java.util.List;
+
+@Service
+@Slf4j
+public class ThreadService {
+
+    static String sender = "나이키닷컴 <postmaster@nike.co.kr>";
+    //static String title ="[NIKE.COM] 개인정보 이용 내역 통지 안내";
+    static String title ="[나이키] 개인 정보 국외 이전 동의 요청 안내";
+
+    @Resource
+    TargetService targetService;
+
+    @Async("executor")
+    public void call(Form form, List<String> sendList) {
+        String apiKey = form.getApiKey();
+        String apiUrl = form.getApiUrl();
+        TargetType targetType = form.getTargetType();
+        String templateName = form.getTemplateName();
+
+        for(String email : sendList){
+            try{
+                Target target = targetService.findTargetByEmail(email);
+                if(target != null){
+                    try{
+                        target.setIsFail(false);
+                        target.setIsSend(true);
+                        targetService.update(target);
+                    }catch (Exception e){
+                        log.error("IsSend Update Error = {}, mail = {}",e,target.getEmail());
+                    }
+
+
+                    /*if(target.getIsSend() == false){
+                        try{
+                            ClientResponse clientResponse = send(target.getEmail(),apiKey,apiUrl,templateName);
+                            if (clientResponse.getStatusInfo().getStatusCode() == 200) {
+                                try{
+                                    target.setIsFail(false);
+                                    target.setIsSend(true);
+                                    targetService.update(target);
+                                    log.info("Success Send mail = {}", target.getEmail());
+                                }catch (Exception e){
+                                    log.error("IsSend Update Error = {}, mail = {}",e,target.getEmail());
+                                }
+                            }else {
+                                target.setIsFail(true);
+                                targetService.update(target);
+                                log.info("clientResponse.getStatusInfo().getStatusCode() = {}, mail = {}",clientResponse.getStatusInfo().getStatusCode(),target.getEmail());
+                            }
+                        }catch (Exception e) {
+                            log.error("Http Error = {}, mail = {}",e,target.getEmail());
+                        }
+                    }else {
+                        log.info("Already send mail = {}",target.getEmail());
+                    }*/
+                }else{
+                    log.info("Target Data is not exist = {}" , target.getEmail());
+                }
+            }catch (Exception e) {
+                log.error("Service Error = {}", e);
+            }
+        }
+    }
+
+    public ClientResponse send(String email, String apiKey, String apiUrl, String templateName) {
+        Client client = Client.create();
+        client.addFilter(new HTTPBasicAuthFilter("api", apiKey));
+        WebResource webResource = client.resource(apiUrl);
+        MultivaluedMapImpl formData = new MultivaluedMapImpl();
+        formData.add("from", sender);
+        formData.add("to", email);
+        formData.add("subject", title);
+        //formData.add("template", "customer_info");
+        formData.add("template",templateName);
+        return webResource.type(MediaType.APPLICATION_FORM_URLENCODED).
+                post(ClientResponse.class, formData);
+    }
+    @Async("executor")
+    public Target createUser(String email) {
+        return targetService.save(email);
+    }
+}
