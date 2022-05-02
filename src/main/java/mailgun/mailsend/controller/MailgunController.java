@@ -1,6 +1,10 @@
 package mailgun.mailsend.controller;
 
-import com.opencsv.bean.CsvToBean;
+import com.google.gson.Gson;
+import com.google.gson.reflect.TypeToken;
+import com.mashape.unirest.http.HttpResponse;
+import com.mashape.unirest.http.JsonNode;
+import com.mashape.unirest.http.Unirest;
 import com.opencsv.bean.CsvToBeanBuilder;
 import lombok.extern.slf4j.Slf4j;
 import mailgun.mailsend.domain.Bounce;
@@ -11,43 +15,44 @@ import mailgun.mailsend.dto.Form;
 import mailgun.mailsend.service.TargetService;
 import mailgun.mailsend.service.ThreadService;
 import mailgun.mailsend.thread.ThreadPoolInit;
+import org.json.JSONObject;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
+import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.GetMapping;
-import com.mashape.unirest.http.JsonNode;
-import com.mashape.unirest.http.HttpResponse;
-import com.mashape.unirest.http.Unirest;
-import org.json.JSONObject;
-
-import java.io.*;
-import java.lang.reflect.Type;
-import com.google.gson.Gson;
-import com.google.gson.reflect.TypeToken;
 import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.multipart.MultipartFile;
 
-import javax.annotation.PostConstruct;
 import javax.annotation.Resource;
+import java.io.BufferedReader;
+import java.io.ByteArrayOutputStream;
+import java.io.InputStreamReader;
+import java.io.Reader;
+import java.lang.reflect.Type;
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
+import java.util.Date;
 import java.util.List;
-import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.Executor;
 import java.util.stream.Collectors;
 
 @Slf4j
 @Controller
 public class MailgunController {
 
-    static final int MAX_LIMIT = 3000;
-    private final String CREATE_BOUNCE_LIST = "bounce_test.csv";
-
     @Resource
     TargetService targetService;
 
     @Resource
     ThreadService threadService;
+
+    @Resource
+    ThreadPoolInit threadPoolInit;
 
     @ModelAttribute("targetTypes")
     public TargetType[] targetTypes() {
@@ -72,7 +77,9 @@ public class MailgunController {
         model.addAttribute("allCount", allCount);
         model.addAttribute("sendCount", sendCount);
         model.addAttribute("form",new Form());
-
+        ThreadPoolTaskExecutor executor = (ThreadPoolTaskExecutor) threadPoolInit.setExecutor();
+        model.addAttribute("threadActiveCount",executor.getActiveCount());
+        log.info("Thread ActiveCount = {}" ,executor.getActiveCount() );
         return "list";
     }
 
@@ -87,6 +94,8 @@ public class MailgunController {
     public String send(Form form) {
         log.info("########## Send start ##########");
         try {
+            ThreadPoolTaskExecutor executor = (ThreadPoolTaskExecutor) threadPoolInit.setExecutor();
+            int maxPoolSize = executor.getMaxPoolSize();
             //Target 종류별 List 가져오기
             List<String> list = new ArrayList<>();
             if(TargetType.FAIL.equals(form.getTargetType())){
@@ -96,15 +105,17 @@ public class MailgunController {
             }
             log.info("SendList Size = {}", list.size());
             if (list.size() > 0) {
+                int maxLimit = (int) Math.ceil(((double) list.size()/ (double) maxPoolSize));
+                log.info("SendList MaxLimit = {}" , maxLimit);
                 //메일 전송하기
                 for (int index = 0; index < list.size(); ) {
-                    int limitSize = index + MAX_LIMIT;
+                    int limitSize = index + maxLimit;
                     if (limitSize > list.size()) {
                         limitSize = list.size();
                     }
                     List<String> sendList = list.subList(index, limitSize);
                     threadService.call(form,sendList);
-                    index += MAX_LIMIT;
+                    index += maxLimit;
                 }
             }
         } catch (Exception e) {
@@ -141,9 +152,15 @@ public class MailgunController {
                 if(filelist.size() > 0){
                     List<String> list = filelist.stream().map(CsvMail::getEmail).collect(Collectors.toList());
                     if (list.size() > 0) {
+                        ThreadPoolTaskExecutor executor = (ThreadPoolTaskExecutor) threadPoolInit.setExecutor();
+                        int maxPoolSize = executor.getMaxPoolSize();
+                        int maxLimit = (int) Math.ceil(((double) list.size()/ (double) maxPoolSize));
+                        //int maxLimit = (int) Math.ceil(((double) list.size()/(double) maxPoolSize)/1000)*1000;
+                        log.info("upload-csv-file MaxLimit = {}, list = {}" , maxLimit, list.size());
+
                         //Upload File Create
                         for (int index = 0; index < list.size(); ) {
-                            int limitSize = index + MAX_LIMIT;
+                            int limitSize = index + maxLimit;
                             if (limitSize > list.size()) {
                                 limitSize = list.size();
                             }
@@ -153,7 +170,7 @@ public class MailgunController {
                             }else if("bounce".equals(dataType)){
                                 threadService.bounceUser(sendList);
                             }
-                            index += MAX_LIMIT;
+                            index += maxLimit;
                         }
                     }
                 }
@@ -168,18 +185,12 @@ public class MailgunController {
 
     /**
      * Mailgun Bounce List File Create
-     * @param apiUrl
-     * @param apiKey
-     * @param model
      */
-
     @GetMapping("/create-bounce-list")
-    public void createBounceByMailgun(@RequestParam String apiUrl,
-                                      @RequestParam String apiKey,
-                                      Model model) {
+    public ResponseEntity<byte[]> createBounceByMailgun(Form form) {
         List<Bounce> list = new ArrayList<>();
         //API 호출
-        String url = apiUrl;
+        String url = form.getApiUrl();
         String nextUrl = "";
         while(true){
             try {
@@ -187,7 +198,7 @@ public class MailgunController {
                     url = nextUrl;
                 }
                 HttpResponse<JsonNode> request = Unirest.get(url)
-                        .basicAuth("api", apiKey)
+                        .basicAuth("api", form.getApiKey())
                         .field("limit", "10000")
                         .asJson();
                 JsonNode body = request.getBody();
@@ -212,7 +223,12 @@ public class MailgunController {
 
         //CSV 만들기
         if (!list.isEmpty()) {
-            try (PrintWriter writer = new PrintWriter(new File(CREATE_BOUNCE_LIST))) {
+            String fileName = String.format("bounce_list_%s.csv",new SimpleDateFormat("yyyyMMdd").format(new Date())) ;
+            try {
+                HttpHeaders headers = new HttpHeaders();
+                headers.setContentType(MediaType.APPLICATION_OCTET_STREAM);
+                headers.set("Content-Disposition", "attachment; filename=" + fileName);
+                ByteArrayOutputStream os = new ByteArrayOutputStream();
                 StringBuilder sb = new StringBuilder();
                 sb.append("address");
                 sb.append('\n');
@@ -220,23 +236,14 @@ public class MailgunController {
                     sb.append(bounce.getAddress());
                     sb.append('\n');
                 }
-                writer.write(sb.toString());
-                writer.close();
+                os.write(sb.toString().getBytes());
+                os.close();
                 log.info("Create File Success!");
-                System.out.println("done!");
-
+                return new ResponseEntity<>(os.toByteArray(), headers, HttpStatus.OK);
             } catch (Exception e) {
                 log.error("Create File Error = {}",e);
             }
         }
+        return null;
     }
-
-
-    /*@PostConstruct
-    public void inti() {
-        for(int i = 1 ;i <=300000;i++){
-            String email = "test"+i;
-            targetService.save(email);
-        }
-    }*/
 }

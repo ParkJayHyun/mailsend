@@ -70,7 +70,7 @@
 
         <hr class="my-4">
         <div class="row">
-            <div class="col">
+            <div class="col" th:if="${threadActiveCount == 0}">
                 <button class="w-100 btn btn-primary btn-lg" type="submit">확인</button>
             </div>
         </div>
@@ -100,11 +100,37 @@
         </div>
         <hr class="my-4">
         <div class="row">
+            <div class="col" th:if="${threadActiveCount == 0}">
+                <button class="w-100 btn btn-primary btn-lg" type="submit">확인</button>
+            </div>
+        </div>
+    </form>
+</div> <!-- /container -->
+
+<hr class="my-4">
+<div class="container" style="max-width: 600px">
+    <div class="py-5 text-center">
+        <h2>Bounce List 추출</h2>
+    </div>
+    <!-- 추가 -->
+    <h2 th:if="${param.status}" th:text="'Bounce List 추출 성공'"></h2>
+    <form action="list.html" th:action="@{/create-bounce-list}" th:object="${form}" method="get">
+        <div>
+            <label for="apiUrl">API URL</label>
+            <input type="text" th:field="*{apiUrl}" class="form-control" placeholder="api url을 입력하세요.">
+        </div>
+        <div>
+            <label for="apiKey">API KEY</label>
+            <input type="text" th:field="*{apiKey}" class="form-control" placeholder="api Key을 입력하세요">
+        </div>
+        <hr class="my-4">
+        <div class="row">
             <div class="col">
                 <button class="w-100 btn btn-primary btn-lg" type="submit">확인</button>
             </div>
         </div>
     </form>
 </div> <!-- /container -->
+
 </body>
 </html>
