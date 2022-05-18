@@ -5,6 +5,7 @@ import org.springframework.stereotype.Repository;
 
 import javax.persistence.EntityManager;
 import javax.persistence.PersistenceContext;
+import javax.persistence.TypedQuery;
 import java.util.List;
 
 @Repository
@@ -120,5 +121,27 @@ public class TargetRepository {
         return em.createQuery("select m from Target m where m.isBounce = false and m.isFail = true and m.isSend = false ", Target.class)
                 .setMaxResults(maxCount)
                 .getResultList();
+    }
+
+    public int findAllCount() {
+         return ((Long) em.createQuery("select count(m) from Target m").getSingleResult()).intValue();
+    }
+
+    public int allBounceCount() {
+        return ((Long) em.createQuery("select count(m) from Target m where m.isBounce = true ").getSingleResult()).intValue();
+
+    }
+
+    public int allSendedCount() {
+        return ((Long)em.createQuery("select count(m) from Target m where m.isBounce = false and m.isFail = false and m.isSend = true ").getSingleResult()).intValue();
+
+    }
+
+    public int allFailCount() {
+        return ((Long) em.createQuery("select count(m) from Target m where m.isBounce = false and m.isFail = true and m.isSend = false ").getSingleResult()).intValue();
+    }
+
+    public int allSendCount() {
+        return ((Long) em.createQuery("select count(m) from Target m where m.isBounce = false and m.isFail = false and m.isSend = false ").getSingleResult()).intValue();
     }
 }

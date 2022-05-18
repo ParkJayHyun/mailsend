@@ -17,4 +17,10 @@ public interface TargetService {
     List<Target> getFailList(int maxCount);
     Target update(Target target);
 
+    int findAllCount();
+    int allBounceCount();
+    int allSendedCount();
+    int allFailCount();
+    int allSendCount();
+
 }

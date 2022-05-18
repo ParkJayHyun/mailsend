@@ -72,4 +72,32 @@ public class TargetServiceImpl implements TargetService{
     public Target update(Target target) {
         return targetRepository.save(target);
     }
+
+    @Override
+    public int findAllCount() {
+        return targetRepository.findAllCount();
+    }
+
+    @Override
+    public int allBounceCount() {
+        return targetRepository.allBounceCount();
+    }
+
+    @Override
+    public int allSendedCount() {
+        return targetRepository.allSendedCount();
+    }
+
+    @Override
+    public int allFailCount() {
+        return targetRepository.allFailCount();
+    }
+
+    @Override
+    public int allSendCount() {
+        return targetRepository.allSendCount();
+    }
+
+    /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
 }

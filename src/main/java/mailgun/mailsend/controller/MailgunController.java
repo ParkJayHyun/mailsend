@@ -66,11 +66,12 @@ public class MailgunController {
      */
     @GetMapping
     public String list(Model model) {
-        int bounceCount = targetService.allBounceList().size();
-        int failCount = targetService.allFailList().size();
-        int sendedCount = targetService.allSendedList().size();
-        int allCount = targetService.findAll().size();
-        int sendCount = targetService.allSendList().size();
+        int allCount = targetService.findAllCount();
+        int sendCount = targetService.allSendCount();
+        int sendedCount = targetService.allSendedCount();
+        int bounceCount = targetService.allBounceCount();
+        int failCount = targetService.allFailCount();
+
         model.addAttribute("bounceCount", bounceCount);
         model.addAttribute("failCount", failCount);
         model.addAttribute("sendedCount", sendedCount);

@@ -13,8 +13,8 @@ public class ThreadPoolInit {
     @Bean(name = "executor")
     public Executor setExecutor(){
         ThreadPoolTaskExecutor executor = new ThreadPoolTaskExecutor();
-        executor.setCorePoolSize(100);
-        executor.setMaxPoolSize(150);
+        executor.setCorePoolSize(150);
+        executor.setMaxPoolSize(200);
         executor.setQueueCapacity(200);
         executor.setThreadNamePrefix("task-");
         return executor;
