@@ -22,7 +22,10 @@ public class ThreadService {
 
     static String sender = "나이키닷컴 <postmaster@nike.co.kr>";
     //static String title ="[NIKE.COM] 개인정보 이용 내역 통지 안내";
-    static String title ="[나이키] 개인 정보 국외 이전 동의 요청 안내";
+    //static String title ="[나이키] 개인 정보 국외 이전 동의 요청 안내";
+    static String title ="[나이키] MVP 회원 등급 안내";
+    //static String title ="[나이키] 개인 정보 국외 이전 및 제 3자 제공 동의 요청";
+
 
     @Resource
     TargetService targetService;

@@ -231,7 +231,7 @@ public class MailgunController {
                 headers.set("Content-Disposition", "attachment; filename=" + fileName);
                 ByteArrayOutputStream os = new ByteArrayOutputStream();
                 StringBuilder sb = new StringBuilder();
-                sb.append("address");
+                sb.append("email");
                 sb.append('\n');
                 for (Bounce bounce : list) {
                     sb.append(bounce.getAddress());
