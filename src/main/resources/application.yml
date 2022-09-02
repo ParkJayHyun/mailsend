@@ -1,6 +1,7 @@
 spring:
   datasource:
-    url: jdbc:h2:tcp://localhost/~/mailgun
+    #url: jdbc:h2:tcp://localhost/~/mvpmailgunre
+    url : jdbc:h2:tcp://localhost/~/test11
     username: sa
     password:
     driver-class-name: org.h2.Driver

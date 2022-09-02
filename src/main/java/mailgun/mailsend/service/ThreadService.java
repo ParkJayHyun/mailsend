@@ -23,6 +23,7 @@ public class ThreadService {
     static String sender = "나이키닷컴 <postmaster@nike.co.kr>";
     //static String title ="[NIKE.COM] 개인정보 이용 내역 통지 안내";
     //static String title ="[나이키] 개인 정보 국외 이전 동의 요청 안내";
+    //static String title ="[나이키] 휴면계정 삭제 예정안내";
     static String title ="[나이키] MVP 회원 등급 안내";
     //static String title ="[나이키] 개인 정보 국외 이전 및 제 3자 제공 동의 요청";
 
@@ -94,10 +95,14 @@ public class ThreadService {
     @Async("executor")
     public void createUser(List<String> createList) {
         for(String email : createList){
-            try {
-                targetService.save(email);
-            }catch (Exception e){
-                log.error("upload file create user error = {}",e);
+            if(!isKoreaWord(email)){
+                try {
+                    targetService.save(email);
+                }catch (Exception e){
+                    log.error("upload file create user error = {}",e);
+                }
+            }else{
+                log.info("한글이 포함된 email = {}", email);
             }
         }
     }
@@ -115,5 +120,19 @@ public class ThreadService {
                 log.error("upload file create user error = {}",e);
             }
         }
+    }
+
+    public static Boolean isKoreaWord(String email) {
+        boolean result = false;
+        if(email.matches(".*[ㄱ-ㅎㅏ-ㅣ가-힣]+.*")) {
+            // 한글이 포함된 문자열
+            result = true;
+        }
+        return result;
+    }
+
+    public static void main(String[] args) {
+        String email = "계동규dounner52@naver.com";
+        System.out.println("isKoreaWord = " + isKoreaWord(email));
     }
 }

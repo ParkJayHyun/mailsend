@@ -143,7 +143,7 @@ public class MailgunController {
         log.info("####### dataType ={} Start #######",dataType);
         if (!file.isEmpty()) {
             try{
-                Reader reader = new BufferedReader(new InputStreamReader(file.getInputStream()));
+                Reader reader = new BufferedReader(new InputStreamReader(file.getInputStream(),"MS949"));
                 List<CsvMail> filelist = new CsvToBeanBuilder(reader)
                         .withType(CsvMail.class)
                         .withIgnoreLeadingWhiteSpace(true)
