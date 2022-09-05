@@ -58,9 +58,10 @@ public class MailgunController {
     public TargetType[] targetTypes() {
         return TargetType.values();
     }
-    
+
     /**
      * list 조회
+     *
      * @param model
      * @return
      */
@@ -77,16 +78,17 @@ public class MailgunController {
         model.addAttribute("sendedCount", sendedCount);
         model.addAttribute("allCount", allCount);
         model.addAttribute("sendCount", sendCount);
-        model.addAttribute("form",new Form());
+        model.addAttribute("form", new Form());
         ThreadPoolTaskExecutor executor = (ThreadPoolTaskExecutor) threadPoolInit.setExecutor();
-        model.addAttribute("threadActiveCount",executor.getActiveCount());
-        log.info("Thread ActiveCount = {}" ,executor.getActiveCount() );
+        model.addAttribute("threadActiveCount", executor.getActiveCount());
+        log.info("Thread ActiveCount = {}", executor.getActiveCount());
         return "list";
     }
 
 
     /**
      * 메일 전송
+     *
      * @param form
      * @return
      */
@@ -99,15 +101,15 @@ public class MailgunController {
             int maxPoolSize = executor.getMaxPoolSize();
             //Target 종류별 List 가져오기
             List<String> list = new ArrayList<>();
-            if(TargetType.FAIL.equals(form.getTargetType())){
+            if (TargetType.FAIL.equals(form.getTargetType())) {
                 list = getFailList(form.getMaxCount());
-            }else if(TargetType.SEND.equals(form.getTargetType())){
+            } else if (TargetType.SEND.equals(form.getTargetType())) {
                 list = getSendList(form.getMaxCount());
             }
             log.info("SendList Size = {}", list.size());
             if (list.size() > 0) {
-                int maxLimit = (int) Math.ceil(((double) list.size()/ (double) maxPoolSize));
-                log.info("SendList MaxLimit = {}" , maxLimit);
+                int maxLimit = (int) Math.ceil(((double) list.size() / (double) maxPoolSize));
+                log.info("SendList MaxLimit = {}", maxLimit);
                 //메일 전송하기
                 for (int index = 0; index < list.size(); ) {
                     int limitSize = index + maxLimit;
@@ -115,7 +117,7 @@ public class MailgunController {
                         limitSize = list.size();
                     }
                     List<String> sendList = list.subList(index, limitSize);
-                    threadService.call(form,sendList);
+                    threadService.call(form, sendList);
                     index += maxLimit;
                 }
             }
@@ -138,26 +140,26 @@ public class MailgunController {
 
     @PostMapping("upload-csv-file")
     public String uploadCSVFile(@RequestParam("file") MultipartFile file,
-                                @RequestParam String dataType ,
+                                @RequestParam String dataType,
                                 Model model) {
-        log.info("####### dataType ={} Start #######",dataType);
+        log.info("####### dataType ={} Start #######", dataType);
         if (!file.isEmpty()) {
-            try{
-                Reader reader = new BufferedReader(new InputStreamReader(file.getInputStream(),"MS949"));
+            try {
+                Reader reader = new BufferedReader(new InputStreamReader(file.getInputStream(), "MS949"));
                 List<CsvMail> filelist = new CsvToBeanBuilder(reader)
                         .withType(CsvMail.class)
                         .withIgnoreLeadingWhiteSpace(true)
                         .build()
                         .parse();
 
-                if(filelist.size() > 0){
+                if (filelist.size() > 0) {
                     List<String> list = filelist.stream().map(CsvMail::getEmail).collect(Collectors.toList());
                     if (list.size() > 0) {
                         ThreadPoolTaskExecutor executor = (ThreadPoolTaskExecutor) threadPoolInit.setExecutor();
                         int maxPoolSize = executor.getMaxPoolSize();
-                        int maxLimit = (int) Math.ceil(((double) list.size()/ (double) maxPoolSize));
+                        int maxLimit = (int) Math.ceil(((double) list.size() / (double) maxPoolSize));
                         //int maxLimit = (int) Math.ceil(((double) list.size()/(double) maxPoolSize)/1000)*1000;
-                        log.info("upload-csv-file MaxLimit = {}, list = {}" , maxLimit, list.size());
+                        log.info("upload-csv-file MaxLimit = {}, list = {}", maxLimit, list.size());
 
                         //Upload File Create
                         for (int index = 0; index < list.size(); ) {
@@ -166,21 +168,91 @@ public class MailgunController {
                                 limitSize = list.size();
                             }
                             List<String> sendList = list.subList(index, limitSize);
-                            if("create".equals(dataType)){
+                            if ("create_not_korea_word".equals(dataType)) {
+                                List<String> filterList = new ArrayList<>();
+                                for (String email : sendList) {
+                                    if (!isKoreaWord(email)) {
+                                        filterList.add(email);
+                                    } else {
+                                        log.info("email contain korea word = {}", email);
+                                    }
+                                }
+                                sendList = filterList;
                                 threadService.createUser(sendList);
-                            }else if("bounce".equals(dataType)){
+                            }
+                            if ("create".equals(dataType)) {
+                                threadService.createUser(sendList);
+                            } else if ("bounce".equals(dataType)) {
                                 threadService.bounceUser(sendList);
                             }
                             index += maxLimit;
                         }
                     }
                 }
-            }catch (Exception e){
-                log.error("upload-csv-file reader error = {}",e);
+            } catch (Exception e) {
+                log.error("upload-csv-file reader error = {}", e);
             }
         }
-        log.info("####### dataType ={} End #######",dataType);
+        log.info("####### dataType ={} End #######", dataType);
         return "redirect:";
+    }
+
+    @PostMapping("csv-file-filter-download")
+    public ResponseEntity<byte[]> downloadCSVtoCSVFilter(@RequestParam("file") MultipartFile file,
+                                                         Model model) {
+        log.info("####### downloadCSVtoCSVFilter Start #######");
+        if (!file.isEmpty()) {
+            try {
+                Reader reader = new BufferedReader(new InputStreamReader(file.getInputStream(), "MS949"));
+                List<CsvMail> filelist = new CsvToBeanBuilder(reader)
+                        .withType(CsvMail.class)
+                        .withIgnoreLeadingWhiteSpace(true)
+                        .build()
+                        .parse();
+
+                if (filelist.size() > 0) {
+                    List<String> list = filelist.stream().map(CsvMail::getEmail).collect(Collectors.toList());
+                    if (list.size() > 0) {
+                        //filter 적용
+                        List<String> filterList = new ArrayList<>();
+                        for (String email : list) {
+                            if (!isKoreaWord(email)) {
+                                filterList.add(email);
+                            } else {
+                                log.info("email contain korea word = {}", email);
+                            }
+                        }
+                        //filter된 list csvFile 생성
+                        if(filterList.size() > 0){
+                            String fileName = String.format("%s_filter_%s.csv", file.getOriginalFilename(),new SimpleDateFormat("yyyyMMdd").format(new Date()));
+                            try {
+                                HttpHeaders headers = new HttpHeaders();
+                                headers.setContentType(MediaType.APPLICATION_OCTET_STREAM);
+                                headers.set("Content-Disposition", "attachment; filename=" + fileName);
+                                ByteArrayOutputStream os = new ByteArrayOutputStream();
+                                StringBuilder sb = new StringBuilder();
+                                sb.append("email");
+                                sb.append('\n');
+                                for (String filterEmail : filterList) {
+                                    sb.append(filterEmail);
+                                    sb.append('\n');
+                                }
+                                os.write(sb.toString().getBytes());
+                                os.close();
+                                log.info("Create CSV Filter File Success!");
+                                return new ResponseEntity<>(os.toByteArray(), headers, HttpStatus.OK);
+                            } catch (Exception e) {
+                                log.error("Create File Error = {}", e);
+                            }
+                        }
+                    }
+                }
+            } catch (Exception e) {
+                log.error("upload-csv-file reader error = {}", e);
+            }
+        }
+        log.info("####### downloadCSVtoCSVFilter End #######");
+        return null;
     }
 
 
@@ -193,7 +265,7 @@ public class MailgunController {
         //API 호출
         String url = form.getApiUrl();
         String nextUrl = "";
-        while(true){
+        while (true) {
             try {
                 if (!nextUrl.isEmpty()) {
                     url = nextUrl;
@@ -207,7 +279,8 @@ public class MailgunController {
                 //items -> 객체 변환
                 Object items = object.get("items");
                 Gson gons = new Gson();
-                Type listType = new TypeToken<ArrayList<Bounce>>() {}.getType();
+                Type listType = new TypeToken<ArrayList<Bounce>>() {
+                }.getType();
                 List<Bounce> bounceList = gons.fromJson(items.toString(), listType);
                 if (!bounceList.isEmpty()) {
                     list.addAll(bounceList);
@@ -218,13 +291,13 @@ public class MailgunController {
                     break;
                 }
             } catch (Exception e) {
-                log.error("Mailgun Api call error = {}",e);
+                log.error("Mailgun Api call error = {}", e);
             }
         }
 
         //CSV 만들기
         if (!list.isEmpty()) {
-            String fileName = String.format("bounce_list_%s.csv",new SimpleDateFormat("yyyyMMdd").format(new Date())) ;
+            String fileName = String.format("bounce_list_%s.csv", new SimpleDateFormat("yyyyMMdd").format(new Date()));
             try {
                 HttpHeaders headers = new HttpHeaders();
                 headers.setContentType(MediaType.APPLICATION_OCTET_STREAM);
@@ -242,9 +315,20 @@ public class MailgunController {
                 log.info("Create File Success!");
                 return new ResponseEntity<>(os.toByteArray(), headers, HttpStatus.OK);
             } catch (Exception e) {
-                log.error("Create File Error = {}",e);
+                log.error("Create File Error = {}", e);
             }
         }
         return null;
+    }
+
+    public Boolean isKoreaWord(String email) {
+        boolean result = false;
+        if(email != null){
+            if (email.matches(".*[ㄱ-ㅎㅏ-ㅣ가-힣]+.*")) {
+                // 한글이 포함된 문자열
+                result = true;
+            }
+        }
+        return result;
     }
 }

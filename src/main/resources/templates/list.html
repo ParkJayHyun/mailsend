@@ -76,6 +76,25 @@
         </div>
     </form>
 </div> <!-- /container -->
+<hr class="my-4">
+<div class="container" style="max-width: 600px">
+    <div class="py-5 text-center">
+        <h2>CSV to CSV 변환(한글 제외 필터 적용)</h2>
+    </div>
+    <form action="list.html" th:action="@{/csv-file-filter-download}" enctype="multipart/form-data" method="post">
+        <div>
+            <label for="file">Select a CSV file</label>
+            <input type="file" name="file" class="form-control" id="file" accept=".csv">
+        </div>
+        <hr class="my-4">
+        <div class="row">
+            <div class="col" th:if="${threadActiveCount == 0}">
+                <button class="w-100 btn btn-primary btn-lg" type="submit">확인</button>
+            </div>
+        </div>
+    </form>
+</div> <!-- /container -->
+
 
 <hr class="my-4">
 <div class="container" style="max-width: 600px">

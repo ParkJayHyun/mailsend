@@ -1,7 +1,7 @@
 spring:
   datasource:
     #url: jdbc:h2:tcp://localhost/~/mvpmailgunre
-    url : jdbc:h2:tcp://localhost/~/test11
+    url : jdbc:h2:tcp://localhost/~/pp_tou_change_notice
     username: sa
     password:
     driver-class-name: org.h2.Driver
